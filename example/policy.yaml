@@ -1,0 +1,63 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pod-validating-configure
+spec:
+  validationFailureAction: enforce
+  rules:
+    - name: check-memory-cpu-override
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - DaemonSet
+              selector:
+                matchLabels:
+                  service.app.ke.com/id: "?*"
+      preconditions:
+        any:
+          - key: "{{ request.operation }}"
+            operator: In
+            value:
+              - CREATE
+              - UPDATE
+      validate:
+        message: "cpu或内存超卖设置太高, CPU最大超卖比例为[4000%],内存最大超卖比例为[500%]"
+        foreach:
+          - list: "request.object.spec.template.spec.containers"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ divide('{{ element.resources.limits.memory || '0' }}', '{{ element.resources.requests.memory || '1m' }}') }}"
+                    operator: GreaterThan
+                    value: 5
+                  - key: "{{ divide('{{ element.resources.limits.cpu || '0' }}', '{{ element.resources.requests.cpu || '200m' }}') }}"
+                    operator: GreaterThan
+                    value: 40
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pod-mutating-configure
+spec:
+  rules:
+    - name: dnsconfig
+      match:
+        resources:
+          kinds:
+            - Pod
+          selector:
+            matchLabels:
+              service.app.ke.com/id: "?*"
+      mutate:
+        patchStrategicMerge:
+          spec:
+            dnsConfig:
+              options:
+                - name: ndots
+                  value: "1"
+                - name: timeout
+                  value: "1"
+                - name: single-request-reopen

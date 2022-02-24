@@ -1,0 +1,34 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nginx-test-mutate
+  name: nginx-test-mutate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-test-mutate
+      # service.app.ke.com/id: nginx-test-mutate
+  template:
+    metadata:
+      labels:
+        app: nginx-test-mutate
+        service.app.ke.com/id: nginx-test-mutate
+        env.app.ke.com/type: prod
+        app_type: web
+    #  annotations:
+    #    DnsConfig: enabled
+    #    Qos: enabled
+    spec:
+      containers:
+        - image: nginx:1.18
+          name: nginx
+          resources:
+            limits:
+              cpu: 0.5
+              memory: 500Mi
+            requests:
+              cpu: 0.2
+              memory: 300Mi
